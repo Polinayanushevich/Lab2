@@ -1,0 +1,35 @@
+# Скомпилированные файлы
+*.o
+*.obj
+*.exe
+yacobi3d
+yacobi3d_prof
+
+# Файлы вывода SLURM
+*.out
+*.err
+
+# Файлы профилирования MPE
+*.clog2
+*.slog2
+mpe.log*
+
+# Временные файлы
+*.tmp
+*.swp
+*~
+
+# Файлы base64 и части
+profil_b64.txt
+part_*
+*.tar.gz
+
+# Системные файлы
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

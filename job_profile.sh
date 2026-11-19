@@ -4,9 +4,9 @@
 #SBATCH --ntasks=16
 #SBATCH --threads-per-core=1
 #SBATCH --time=00:10:00
-#SBATCH --job-name=lab4_profile
-#SBATCH --output=lab4_profile_%j.out
-#SBATCH --error=lab4_profile_%j.err
+#SBATCH --job-name=lab2_profile
+#SBATCH --output=lab2_profile_%j.out
+#SBATCH --error=lab2_profile_%j.err
 
 echo $(hostname -s)
 

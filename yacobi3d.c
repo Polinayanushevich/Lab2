@@ -13,6 +13,7 @@
 
 #define A_PARAM   1e5
 #define EPSILON   1e-8
+#define MAX_ITER  50000
 
 #define NX 350
 #define NY 350
@@ -53,8 +54,6 @@ int main(int argc, char** argv) {
     double *phi     = (double*)calloc(total, sizeof(double));
     double *phi_new = (double*)calloc(total, sizeof(double));
 
-    // Инициализация: начальное приближение φ⁰ = 0 (по методичке)
-    // Граничные условия: φ|_G = x² + y² + z²
     for (int kl = 0; kl < nz_loc; kl++) {
         int kg;
         if (kl == 0)            kg = k_start - 1;
@@ -68,11 +67,9 @@ int main(int argc, char** argv) {
                 double x = X0 + i * hx;
                 int idx = kl * nx1 * ny1 + j * nx1 + i;
 
-                // Граничные условия
                 if (kg == 0 || kg == NZ || j == 0 || j == NY || i == 0 || i == NX) {
                     phi[idx] = x*x + y*y + z*z;
                 }
-                // Внутренние узлы: начальное приближение = 0 (уже сделано calloc)
                 phi_new[idx] = phi[idx];
             }
         }
@@ -94,8 +91,7 @@ int main(int argc, char** argv) {
     int iter = 0;
     double max_diff = 1.0;
 
-    while (max_diff > EPSILON) {
-        // Асинхронный обмен граничными слоями
+    while (max_diff > EPSILON && iter < MAX_ITER) {
         memcpy(buf_sd, phi + 1        * nx1 * ny1, plane_size * sizeof(double));
         memcpy(buf_su, phi + local_nz * nx1 * ny1, plane_size * sizeof(double));
 
@@ -104,7 +100,6 @@ int main(int argc, char** argv) {
         MPI_Isend(buf_su, plane_size, MPI_DOUBLE, rank_up,   1, MPI_COMM_WORLD, &reqs[2]);
         MPI_Irecv(buf_ru, plane_size, MPI_DOUBLE, rank_up,   0, MPI_COMM_WORLD, &reqs[3]);
 
-        // Вычисление внутренних узлов
         double local_max = 0.0;
         for (int kl = 2; kl <= local_nz - 1; kl++) {
             int kg = k_start + kl - 1;
@@ -115,11 +110,10 @@ int main(int argc, char** argv) {
                     double x = X0 + i * hx;
                     int idx = kl * nx1 * ny1 + j * nx1 + i;
                     double rho = 6.0 - A_PARAM * phi[idx];
-                    phi_new[idx] = ( cx * (phi[idx-1] + phi[idx+1]) 
-                                   + cy * (phi[idx-nx1] + phi[idx+nx1]) 
-                                   + cz * (phi[idx-nx1*ny1] + phi[idx+nx1*ny1]) 
+                    phi_new[idx] = ( cx * (phi[idx-1] + phi[idx+1])
+                                   + cy * (phi[idx-nx1] + phi[idx+nx1])
+                                   + cz * (phi[idx-nx1*ny1] + phi[idx+nx1*ny1])
                                    - rho ) / cc;
-                    
                     double d = fabs(phi_new[idx] - phi[idx]);
                     if (d > local_max) local_max = d;
                 }
@@ -128,11 +122,9 @@ int main(int argc, char** argv) {
 
         MPI_Waitall(4, reqs, stats);
 
-        // Обновление граничных слоёв
         memcpy(phi + 0            * nx1 * ny1, buf_rd, plane_size * sizeof(double));
         memcpy(phi + (local_nz+1) * nx1 * ny1, buf_ru, plane_size * sizeof(double));
 
-        // Вычисление граничных узлов (kl=1 и kl=local_nz)
         int border_ks[2] = {1, local_nz};
         for (int b = 0; b < 2; b++) {
             int kl = border_ks[b];
@@ -144,13 +136,11 @@ int main(int argc, char** argv) {
                 for (int i = 1; i < nx1 - 1; i++) {
                     double x = X0 + i * hx;
                     int idx = kl * nx1 * ny1 + j * nx1 + i;
-                    
                     double rho = 6.0 - A_PARAM * phi[idx];
-                    phi_new[idx] = ( cx * (phi[idx-1] + phi[idx+1]) 
-                                   + cy * (phi[idx-nx1] + phi[idx+nx1]) 
-                                   + cz * (phi[idx-nx1*ny1] + phi[idx+nx1*ny1]) 
+                    phi_new[idx] = ( cx * (phi[idx-1] + phi[idx+1])
+                                   + cy * (phi[idx-nx1] + phi[idx+nx1])
+                                   + cz * (phi[idx-nx1*ny1] + phi[idx+nx1*ny1])
                                    - rho ) / cc;
-                    
                     double d = fabs(phi_new[idx] - phi[idx]);
                     if (d > local_max) local_max = d;
                 }
@@ -160,19 +150,21 @@ int main(int argc, char** argv) {
         MPI_Allreduce(&local_max, &max_diff, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
         memcpy(phi, phi_new, total * sizeof(double));
         iter++;
-        
-        if (rank == 0 && iter % 500 == 0) {
+        if (rank == 0 && iter % 1000 == 0) {
             printf("Iter %5d | max_diff = %e\n", iter, max_diff);
         }
     }
 
     double t_end = MPI_Wtime();
     if (rank == 0) {
-        printf("\nСходимость достигнута за %d итераций\n", iter);
+        if (iter >= MAX_ITER) {
+            printf("\nПревышено максимальное число итераций (%d)\n", MAX_ITER);
+        } else {
+            printf("\nСходимость достигнута за %d итераций\n", iter);
+        }
         printf("Время счёта: %.3f сек\n", t_end - t_start);
     }
 
-    // Вычисление ошибки
     double max_err = 0.0;
     for (int kl = 1; kl <= local_nz; kl++) {
         int kg = k_start + kl - 1;

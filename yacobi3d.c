@@ -11,13 +11,13 @@
 #define DY   2.0
 #define DZ   2.0
 
-#define A_PARAM   1e-5
-#define EPSILON   1e-6
+#define A_PARAM   1e5
+#define EPSILON   1e-8
 #define MAX_ITER  500000
 
-#define NX 128
-#define NY 128
-#define NZ 128
+#define NX 100
+#define NY 100
+#define NZ 100
 
 int main(int argc, char** argv) {
     int rank, size;

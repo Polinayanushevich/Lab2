@@ -5,8 +5,8 @@
 #SBATCH --threads-per-core=1
 #SBATCH --time=00:40:00
 #SBATCH --job-name=lab4_bench
-#SBATCH --output=lab4_bench_%j.out
-#SBATCH --error=lab4_bench_%j.err
+#SBATCH --output=lab2_bench_%j.out
+#SBATCH --error=lab2_bench_%j.err
 
 echo "Host: $(hostname -s)"
 module purge

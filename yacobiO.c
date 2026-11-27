@@ -16,9 +16,9 @@
 #define EPSILON   1e-8
 #define MAX_ITER  500000
 
-#define NX 100
-#define NY 100
-#define NZ 100
+#define NX 300
+#define NY 300
+#define NZ 300
 
 int main(int argc, char** argv) {
     int rank, size;
